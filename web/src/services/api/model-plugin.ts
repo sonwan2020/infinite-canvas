@@ -523,10 +523,10 @@ async function generateVideo({
       if (state.status === "failed" || state.status === "cancelled") {
         throw new Error(state.error && state.error.message ? state.error.message : "video generation failed");
       }
-      if (state.video_url || state.url) {
-        return { url: state.video_url || state.url };
+      if (state.video_url || state.url || state.output_url) {
+        return { url: state.video_url || state.url || state.output_url };
       }
-      if (state.status === "completed") {
+      if (state.status === "completed" || state.status === "succeeded") {
         return await request({
           method: "get",
           url: \`\${baseUrl}/v1/videos/\${task.id}/content\`,
