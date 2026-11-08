@@ -4,6 +4,8 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
+import { GUANTOU_API_KEY } from "@/constant/runtime-config";
+import yisuVideoScript from "@/services/api/yisu-script.js?raw";
 
 export type ApiCallFormat = "openai" | "gemini";
 export type ModelCapability = "image" | "video" | "text" | "audio";
@@ -79,6 +81,22 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 export const LOCAL_PROXY_PACKAGE = "@basketikun/canvas-proxy";
 export const DEFAULT_LOCAL_PROXY_URL = "http://127.0.0.1:23210";
 
+/** Built-in Guantou channel (YiSu gateway). Its model script is bundled from yisu-script.js and re-applied on load, so repo edits always win over dashboard edits. */
+function builtinGuantouChannel(): ModelChannel {
+    return {
+        id: "guantou",
+        name: "Guantou",
+        baseUrl: "http://127.0.0.1:3001",
+        apiKey: GUANTOU_API_KEY,
+        apiFormat: "openai",
+        models: [
+            { name: "deepseek-flash", capability: "image" },
+            { name: "deepseek-v4-pro", capability: "text" },
+            { name: "YiSu-1-1-Flash", capability: "video", script: yisuVideoScript },
+        ],
+    };
+}
+
 export const defaultConfig: AiConfig = {
     channelMode: "local",
     baseUrl: OPENAI_BASE_URL,
@@ -98,11 +116,12 @@ export const defaultConfig: AiConfig = {
                 { name: "gpt-4o-mini-tts", capability: "audio" },
             ],
         },
+        builtinGuantouChannel(),
     ],
-    model: "default::gpt-image-2",
-    imageModel: "default::gpt-image-2",
-    videoModel: "default::grok-imagine-video",
-    textModel: "default::gpt-5.5",
+    model: "guantou::deepseek-flash",
+    imageModel: "guantou::deepseek-flash",
+    videoModel: "guantou::YiSu-1-1-Flash",
+    textModel: "guantou::deepseek-v4-pro",
     audioModel: "default::gpt-4o-mini-tts",
     audioVoice: "alloy",
     audioFormat: "mp3",
@@ -115,7 +134,7 @@ export const defaultConfig: AiConfig = {
     videoMode: "frames",
     systemPrompt: "",
     reasoningEffort: "auto",
-    models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts"],
+    models: ["default::gpt-image-2", "default::grok-imagine-video", "default::gpt-5.5", "default::gpt-4o-mini-tts", "guantou::deepseek-flash", "guantou::deepseek-v4-pro", "guantou::YiSu-1-1-Flash"],
     quality: "auto",
     size: "1:1",
     background: "",
@@ -254,7 +273,7 @@ export const useConfigStore = create<ConfigStore>()(
                 const persistedWebdav = (persistedState.webdav || {}) as Partial<WebdavSyncConfig>;
                 const config = { ...defaultConfig, ...persistedConfig };
                 if (!Array.isArray(persistedConfig.channels)) config.channels = [];
-                const channels = normalizeChannels(config);
+                const channels = applyBuiltinChannels(normalizeChannels(config));
                 const models = modelOptionsFromChannels(channels);
                 return {
                     ...current,
@@ -469,6 +488,25 @@ function normalizeChannels(config: AiConfig) {
         );
     }
     return channels;
+}
+
+/** Ensure the built-in Guantou channel exists and its bundled model script stays current; a user-entered key is kept, the env key only fills an empty one. */
+function applyBuiltinChannels(channels: ModelChannel[]) {
+    const builtin = builtinGuantouChannel();
+    const existing = channels.find((channel) => normalizedBaseUrlKey(channel.baseUrl) === normalizedBaseUrlKey(builtin.baseUrl));
+    if (!existing) return [...channels, createModelChannel(builtin)];
+    const models = existing.models.map((model) => {
+        const bundled = builtin.models.find((item) => item.name === model.name);
+        return bundled ? { ...model, capability: bundled.capability, script: bundled.script } : model;
+    });
+    for (const bundled of builtin.models) {
+        if (!models.some((model) => model.name === bundled.name)) models.push(bundled);
+    }
+    return channels.map((channel) =>
+        channel === existing
+            ? { ...existing, models, apiKey: existing.apiKey.trim() ? existing.apiKey : builtin.apiKey }
+            : channel,
+    );
 }
 
 export function defaultBaseUrlForApiFormat(apiFormat: ApiCallFormat) {
