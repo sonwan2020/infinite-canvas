@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 
 import i18n from "@/i18n";
-import { GUANTOU_API_KEY } from "@/constant/runtime-config";
+import { GUANTOU_API_KEY, GUANTOU_BASE_URL } from "@/constant/runtime-config";
 import yisuVideoScript from "@/services/api/yisu-script.js?raw";
 
 export type ApiCallFormat = "openai" | "gemini";
@@ -74,19 +74,22 @@ export type ChannelCredentialsImportResult = {
     channelName?: string;
 };
 
-export const CONFIG_STORE_KEY = "infinite-canvas:ai_config_store";
+// v3：移除内置 default（OpenAI gpt）渠道，只保留 Guantou 渠道；v2 浏览器的存量配置作废。
+export const CONFIG_STORE_KEY = "infinite-canvas:ai_config_store:v3";
 const CHANNEL_MODEL_SEPARATOR = "::";
 const OPENAI_BASE_URL = "https://api.openai.com";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com";
 export const LOCAL_PROXY_PACKAGE = "@basketikun/canvas-proxy";
 export const DEFAULT_LOCAL_PROXY_URL = "http://127.0.0.1:23210";
+/** 内置 Guantou 渠道的网关地址，可由运行时/构建时环境变量覆盖，默认指向本机 new-api。 */
+const GUANTOU_BASE_URL_FALLBACK = "http://127.0.0.1:8081";
 
 /** Built-in Guantou channel (YiSu gateway). Its model script is bundled from yisu-script.js and re-applied on load, so repo edits always win over dashboard edits. */
 function builtinGuantouChannel(): ModelChannel {
     return {
         id: "guantou",
         name: "Guantou",
-        baseUrl: "http://127.0.0.1:3001",
+        baseUrl: isHttpBaseUrl(GUANTOU_BASE_URL) ? GUANTOU_BASE_URL : GUANTOU_BASE_URL_FALLBACK,
         apiKey: GUANTOU_API_KEY,
         apiFormat: "openai",
         models: [
@@ -102,27 +105,12 @@ export const defaultConfig: AiConfig = {
     baseUrl: OPENAI_BASE_URL,
     apiKey: "",
     apiFormat: "openai",
-    channels: [
-        {
-            id: "default",
-            name: i18n.t("config.channels.defaultName"),
-            baseUrl: OPENAI_BASE_URL,
-            apiKey: "",
-            apiFormat: "openai",
-            models: [
-                { name: "gpt-image-2", capability: "image" },
-                { name: "grok-imagine-video", capability: "video" },
-                { name: "gpt-5.5", capability: "text" },
-                { name: "gpt-4o-mini-tts", capability: "audio" },
-            ],
-        },
-        builtinGuantouChannel(),
-    ],
+    channels: [builtinGuantouChannel()],
     model: "guantou::deepseek-flash",
     imageModel: "guantou::doubao-seedream-5-0-flash-260915",
     videoModel: "guantou::YiSu-1-1-Flash",
     textModel: "guantou::deepseek-flash",
-    audioModel: "default::gpt-4o-mini-tts",
+    audioModel: "",
     audioVoice: "alloy",
     audioFormat: "mp3",
     audioSpeed: "1",
