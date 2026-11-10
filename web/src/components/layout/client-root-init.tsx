@@ -4,6 +4,7 @@ import { App } from "antd";
 import { useTranslation } from "react-i18next";
 
 import { useConfigStore } from "@/stores/use-config-store";
+import { useUserStore } from "@/stores/use-user-store";
 import { usePromptSourceScheduler } from "@/hooks/use-prompt-source-scheduler";
 
 export function ClientRootInit({ children }: { children: ReactNode }) {
@@ -14,6 +15,12 @@ export function ClientRootInit({ children }: { children: ReactNode }) {
     const openConfigDialog = useConfigStore((state) => state.openConfigDialog);
 
     usePromptSourceScheduler();
+
+    // Boot session check: an anonymous or expired session bounces to the
+    // login page inside fetchMe; a valid one fills the user menu.
+    useEffect(() => {
+        void useUserStore.getState().load();
+    }, []);
 
     useEffect(() => {
         if (handledConfigParams.current) return;

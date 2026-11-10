@@ -2,6 +2,11 @@
 
 ## Unreleased
 
++ [修复] 视频任务轮询结果状态为 completed 或 succeeded 且返回 output_url / video_url / url 时，画布与视频工作台能正确展示生成结果，适配 YiSu 等以 completed 表示完成的上游接口。
++ [调整] YiSu 调用脚本对齐接口文档与真实响应：图片参考仅支持公开 HTTP(S) 地址（images 字段，最多 9 张），视频/音频参考仅支持 metadata.references 的公开地址，本地文件与 data:/blob: 地址在发起请求前明确报错，轮询以真实响应的 completed（兼容文档中的 succeeded）+ output_url 判定完成、failed + error 判定失败。
++ [新增] 内置 Guantou 渠道：默认携带 http://127.0.0.1:3001 渠道及三个模型——deepseek-flash（图片）、deepseek-v4-pro（文本）、YiSu-1-1-Flash（视频，带内置调用脚本），并作为默认图片/文本/视频模型；YiSu 脚本随仓库打包并在每次加载时自动刷新，无需在页面设置里维护；API Key 支持通过容器运行时环境变量 GUANTOU_API_KEY（docker-compose 已配置）或构建变量 VITE_GUANTOU_API_KEY 注入，未设置时在页面设置中填写。
++ [调整] 内置 Guantou 渠道默认图片模型改为 doubao-seedream-5-0-flash-260915。
+
 ## v0.20.0 - 2026-10-10
 
 + [修复] 已选模型或所属渠道被移除时保留原选择并阻止生成及视频任务查询，避免静默切换到默认模型或其他渠道。

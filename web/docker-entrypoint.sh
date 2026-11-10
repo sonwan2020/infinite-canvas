@@ -11,12 +11,21 @@ sanitize_id() {
     printf '%s' "$1" | tr -cd 'A-Za-z0-9-'
 }
 
+# API keys must not contain characters that can break out of the double-quoted JS string.
+sanitize_key() {
+    printf '%s' "$1" | tr -d '\\"\n\r'
+}
+
 GA4_ID=$(sanitize_id "${ANALYTICS_GA4_ID:-}")
 BAIDU_ID=$(sanitize_id "${ANALYTICS_BAIDU_ID:-}")
+GUANTOU_API_KEY=$(sanitize_key "${GUANTOU_API_KEY:-}")
+GUANTOU_BASE_URL=$(sanitize_key "${GUANTOU_BASE_URL:-}")
 
 cat > /usr/share/nginx/html/config.js <<EOF
 window.__RUNTIME_CONFIG__ = {
   ANALYTICS_GA4_ID: "${GA4_ID}",
-  ANALYTICS_BAIDU_ID: "${BAIDU_ID}"
+  ANALYTICS_BAIDU_ID: "${BAIDU_ID}",
+  GUANTOU_API_KEY: "${GUANTOU_API_KEY}",
+  GUANTOU_BASE_URL: "${GUANTOU_BASE_URL}"
 };
 EOF
